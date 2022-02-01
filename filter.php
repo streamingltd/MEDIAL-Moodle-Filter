@@ -29,6 +29,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->dirroot.'/mod/helixmedia/locallib.php');
+
 class filter_medial extends moodle_text_filter {
 
     /**
@@ -77,9 +79,9 @@ class filter_medial extends moodle_text_filter {
      */
     protected function replace_medials($text) {
         global $CFG, $OUTPUT, $PAGE;
-
         // Detect all zones that we should not handle (including the nested tags).
-        $processing = preg_split('/(<\/?(?:span|script)[^>]*>)/is', $text, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        //$processing = preg_split('/(<\/?(?:span|script)[^>]*>)/is', $text, 0, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        $processing = preg_split('/(<[^>]*>)/i', $text, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
 
         // Initialize the results.
         $resulthtml = "";
@@ -89,7 +91,8 @@ class filter_medial extends moodle_text_filter {
         $excludepattern = array('/^<script/is', '/^<span[^>]+class="nolink[^"]*"/is');
 
         // Loop through the fragments.
-        foreach ($processing as $fragment) {
+        foreach ($processing as $idx => $fragment) {
+
             // If we are not ignoring, we MUST test if we should.
             if ($exclude == 0) {
                 foreach ($excludepattern as $exp) {
@@ -101,38 +104,78 @@ class filter_medial extends moodle_text_filter {
             }
 
             if ($exclude > 0) {
-                // If we are ignoring the fragment, then we must check if we may have reached the end of the zone.
-                if (strpos($fragment, '</span') !== false || strpos($fragment, '</script') !== false) {
-                    $exclude -= 1;
-                    // This is needed because of a double increment at the first element.
-                    if ($exclude == 1) {
-                        $exclude -= 1;
-                    }
-                } else if (strpos($fragment, '<span') !== false || strpos($fragment, '<script') !== false) {
-                    // If we find a nested tag we increase the exclusion level.
-                    $exclude = $exclude + 1;
-                }
-            } else if ((strpos($fragment, '<span') === false ||
-                       strpos($fragment, '</span') === false) && strpos($fragment, '<a') !== false) {
+                $exclude -= 1;
+                continue;
+            } else if (strpos($fragment, '<a') !== false) {
                 // This is the meat of the code - this is run every time.
                 // This code only runs for fragments that are not ignored (including the tags themselves).
 
                 $pattern = $CFG->wwwroot."/mod/helixmedia/launch.php";
                 $pp = strpos($fragment, $pattern);
-                if ($pp !== false) {
+                $patternplace = "{{{medial_launch_base}}}/mod/helixmedia/launch.php";
+                $ppp = strpos($fragment, $patternplace);
+
+                if ($pp !== false || $ppp !== false) {
                     $lp = strpos($fragment, "&amp;l=");
                     $ep = strpos($fragment, "\"", $lp);
-                    $url = substr($fragment, $pp, $ep - $pp);
+                    if ($pp) {
+                        $url = substr($fragment, $pp, $ep - $pp);
+                    } else {
+                        $url = substr($fragment, $ppp, $ep - $ppp);
+                        $url = str_replace('{{{medial_launch_base}}}', $CFG->wwwroot, $url);
+                    }
                     $lid = substr($fragment, $lp + 7, $ep - ($lp + 7));
 
-                    $fragment = "<iframe style=\"overflow:hidden;border:0px none;background:#ffffff;width:680px;height:570px;\"".
-                        " src=\"".$url."\" id=\"hmlvid-".$lid."\" allowfullscreen=\"true\" webkitallowfullscreen=\"true\"".
-                        " mozallowfullscreen=\"true\"></iframe>";
+                    // Find the embed type if there is one
+                    $ets = strpos($fragment, "medialembed=");
+                    if ($ets !== false) {
+                        $ete = strpos($fragment, "&", $ets+12);
+                        $embedtype = substr($fragment, $ets + 12, $ete - ($ets + 12));
+                    } else {
+                        $embedtype = "iframe";
+                    }
+
+                    // Find the audioonly attribute if there is one
+                    $aos = strpos($fragment, "audioonly=");
+                    if ($aos !== false) {
+                        $aoe = strpos($fragment, "&", $aos+10);
+                        $audioonly = substr($fragment, $aos + 10, $aoe - ($aos + 10));
+                    } else {
+                        $audioonly = 0;
+                    }
+
+                    $output = $PAGE->get_renderer('mod_helixmedia');
+                    switch ($embedtype) {
+                        case "iframe":
+                            $disp = new \mod_helixmedia\output\view($url, $audioonly);
+                            $fragment = $output->render($disp);
+                            $exclude = 2;
+                            break;
+                        case "link":
+                            $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
+                            $disp = new \mod_helixmedia\output\modal($lid, array(), $params, false,
+                                $processing[$idx+1], false, false);
+                            $fragment = $output->render($disp);
+                            $exclude = 2;
+                            break;
+                        case 'thumbnail':
+                            $thumbparams = array('type' => HML_LAUNCH_THUMBNAILS, 'l' => $lid);
+                            $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
+                            $disp = new \mod_helixmedia\output\modal($lid, $thumbparams, $params, "moodle-lti-view-btn.png",
+                                $processing[$idx+1], false, false);
+                            $fragment = $output->render($disp);
+                            $exclude = 2;
+                            break;
+                        default:
+                            if ($ppp) {
+                                $fragment = "<a href='".$url."' target='_blank'>";
+                            }
+                            break;
+                    }
                 }
             }
             $resulthtml .= $fragment;
         }
-
         return $resulthtml;
     }
 }
