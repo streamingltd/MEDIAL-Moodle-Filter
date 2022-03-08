@@ -58,7 +58,6 @@ class filter_medial extends moodle_text_filter {
      * @return string text after processing
      */
     public function filter($text, array $options = array()) {
-
         if (!isset($options['originalformat'])) {
             // If the format is not specified, we are probably called by {@see format_string()}.
             // In that case, it would be dangerous to replace text with the image because it could
@@ -105,6 +104,7 @@ class filter_medial extends moodle_text_filter {
 
             if ($exclude > 0) {
                 $exclude -= 1;
+                $resulthtml .= $fragment;
                 continue;
             } else if (strpos($fragment, '<a') !== false) {
                 // This is the meat of the code - this is run every time.
