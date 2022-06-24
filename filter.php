@@ -85,6 +85,7 @@ class filter_medial extends moodle_text_filter {
         // Initialize the results.
         $resulthtml = "";
         $exclude = 0;
+        $skip = 0;
 
         // Define the patterns that mark the start of the forbidden zones.
         $excludepattern = array('/^<script/is', '/^<span[^>]+class="nolink[^"]*"/is');
@@ -105,6 +106,9 @@ class filter_medial extends moodle_text_filter {
             if ($exclude > 0) {
                 $exclude -= 1;
                 $resulthtml .= $fragment;
+                continue;
+            } if ($skip > 0) {
+                $skip -= 1;
                 continue;
             } else if (strpos($fragment, '<a') !== false) {
                 // This is the meat of the code - this is run every time.
@@ -149,22 +153,22 @@ class filter_medial extends moodle_text_filter {
                         case "iframe":
                             $disp = new \mod_helixmedia\output\view($url, $audioonly);
                             $fragment = $output->render($disp);
-                            $exclude = 2;
+                            $skip = 2;
                             break;
                         case "link":
                             $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
                             $disp = new \mod_helixmedia\output\modal($lid, array(), $params, false,
                                 $processing[$idx+1], false, false);
                             $fragment = $output->render($disp);
-                            $exclude = 2;
+                            $skip = 2;
                             break;
                         case 'thumbnail':
                             $thumbparams = array('type' => HML_LAUNCH_THUMBNAILS, 'l' => $lid);
                             $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
-                            $disp = new \mod_helixmedia\output\modal($lid, $thumbparams, $params, "moodle-lti-view-btn.png",
+                            $disp = new \mod_helixmedia\output\modal($lid, $thumbparams, $params, "magnifier",
                                 $processing[$idx+1], false, false);
                             $fragment = $output->render($disp);
-                            $exclude = 2;
+                            $skip = 2;
                             break;
                         default:
                             if ($ppp) {
