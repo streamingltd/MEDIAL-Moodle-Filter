@@ -118,15 +118,25 @@ class filter_medial extends moodle_text_filter {
                 $pp = strpos($fragment, $pattern);
                 $patternplace = "{{{medial_launch_base}}}/mod/helixmedia/launch.php";
                 $ppp = strpos($fragment, $patternplace);
+                // Forums mangle the {{{ and }}} 
+                if ($ppp === false) {
+                    $patternplace = "%7B%7B%7Bmedial_launch_base%7D%7D%7D/mod/helixmedia/launch.php";
+                    $pppp = strpos($fragment, $patternplace);
+                }
 
-                if ($pp !== false || $ppp !== false) {
+                if ($pp !== false || $ppp !== false || $pppp != false) {
                     $lp = strpos($fragment, "&amp;l=");
                     $ep = strpos($fragment, "\"", $lp);
                     if ($pp) {
                         $url = substr($fragment, $pp, $ep - $pp);
                     } else {
-                        $url = substr($fragment, $ppp, $ep - $ppp);
-                        $url = str_replace('{{{medial_launch_base}}}', $CFG->wwwroot, $url);
+                        if ($ppp) {
+                            $url = substr($fragment, $ppp, $ep - $ppp);
+                            $url = str_replace('{{{medial_launch_base}}}', $CFG->wwwroot, $url);
+                        } else {
+                            $url = substr($fragment, $pppp, $ep - $ppp);
+                            $url = str_replace('%7B%7B%7Bmedial_launch_base%7D%7D%7D', $CFG->wwwroot, $url);
+                        }
                     }
                     $lid = substr($fragment, $lp + 7, $ep - ($lp + 7));
 
