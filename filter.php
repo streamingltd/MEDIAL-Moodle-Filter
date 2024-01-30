@@ -140,6 +140,10 @@ class filter_medial extends moodle_text_filter {
                     }
                     $lid = substr($fragment, $lp + 7, $ep - ($lp + 7));
 
+                    $types = strpos($fragment, "type=");
+                    $type = strpos($fragment, "&", $types + 5);
+                    $type = substr($fragment, $types + 5, $type - ($types + 5));
+
                     // Find the embed type if there is one
                     $ets = strpos($fragment, "medialembed=");
                     if ($ets !== false) {
@@ -166,7 +170,7 @@ class filter_medial extends moodle_text_filter {
                             $skip = 2;
                             break;
                         case "link":
-                            $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
+                            $params = array('type' => $type, 'l' => $lid);
                             $disp = new \mod_helixmedia\output\modal($lid, array(), $params, false,
                                 $processing[$idx+1], false, false);
                             $fragment = $output->render($disp);
@@ -174,9 +178,16 @@ class filter_medial extends moodle_text_filter {
                             break;
                         case 'thumbnail':
                             $thumbparams = array('type' => HML_LAUNCH_THUMBNAILS, 'l' => $lid);
-                            $params = array('type' => HML_LAUNCH_ATTO_VIEW, 'l' => $lid);
+                            $params = array('type' => $type, 'l' => $lid);
                             $disp = new \mod_helixmedia\output\modal($lid, $thumbparams, $params, "magnifier",
                                 $processing[$idx+1], false, false);
+                            $fragment = $output->render($disp);
+                            $skip = 2;
+                            break;
+                        case 'library':
+                            $params = array('type' => $type, 'l' => $lid);
+                            $disp = new \mod_helixmedia\output\modal($lid, array(), $params, false,
+                                $processing[$idx+1], false, false, 'row', false, true);
                             $fragment = $output->render($disp);
                             $skip = 2;
                             break;
